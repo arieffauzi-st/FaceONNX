@@ -2,6 +2,9 @@
 using System.Drawing;
 using System.IO;
 using UMapx.Visualization;
+using Emgu.CV;
+using Emgu.CV.Structure;
+using Emgu.CV.CvEnum;
 
 namespace FaceONNX
 {
@@ -10,10 +13,7 @@ namespace FaceONNX
         static void Main()
         {
             Console.WriteLine("FaceONNX: Face detection");
-            var files = Directory.GetFiles(@"..\..\..\images", "*.*", SearchOption.AllDirectories);
-            var path = @"..\..\..\results";
-            Directory.CreateDirectory(path);
-
+           
             using var faceDetector = new FaceDetector(0.95f, 0.5f);
             using var painter = new Painter()
             {
@@ -21,31 +21,47 @@ namespace FaceONNX
                 Transparency = 0,
             };
 
-            Console.WriteLine($"Processing {files.Length} images");
+            using var capture = new VideoCapture();
 
-            foreach (var file in files)
+            string windowName = "Face Detection";
+            CvInvoke.NamedWindow(windowName, WindowFlags.AutoSize);
+
+            while (true) 
             {
-                using var bitmap = new Bitmap(file);
-                var output = faceDetector.Forward(bitmap);
-
-                foreach (var rectangle in output)
+                using var frame = capture.QueryFrame();
+                if (frame != null)
                 {
-                    var paintData = new PaintData()
+                    
+                    Image<Bgr, byte> img = frame.ToImage<Bgr, byte>();
+                    Bitmap bitmap = img.ToBitmap();
+
+                    var output = faceDetector.Forward(bitmap);
+
+                    foreach (var rectangle in output)
                     {
-                        Rectangle = rectangle,
-                        Title = string.Empty
-                    };
-                    using var graphics = Graphics.FromImage(bitmap);
-                    painter.Draw(graphics, paintData);
+                        var paintData = new PaintData()
+                        {
+                            Rectangle = rectangle,
+                            Title = string.Empty
+                        };
+                        using var graphics = Graphics.FromImage(bitmap);
+                        painter.Draw(graphics, paintData);
+                    }
+
+                    // Convert the modified Bitmap back to Image<Bgr, byte>
+                    Image<Bgr, byte> processedImg = bitmap.ToImage<Bgr, byte>();
+
+                    // Display the image in the window.
+                    CvInvoke.Imshow(windowName, processedImg);
+                    if (CvInvoke.WaitKey(1) == 27) // Break loop on 'ESC' key press
+                        break;
+
+                    //bitmap.Save("WebcamFrame.png"); // Simpan frame sebagai gambar. Anda mungkin ingin mengubah ini.
+                    Console.WriteLine($"Image: [Webcam frame] --> detected [{output.Length}] faces ");
+                    //Console.WriteLine($"Image: [Webcam frame] --> detected [{output.Length}] faces with last confidence {faceDetector.LastConfidence}");
                 }
-
-                var filename = Path.GetFileName(file);
-                bitmap.Save(Path.Combine(path, filename));
-                Console.WriteLine($"Image: [{filename}] --> detected [{output.Length}] faces");
             }
-
-            Console.WriteLine("Done.");
-            Console.ReadKey();
+            CvInvoke.DestroyWindow(windowName);
         }
     }
 }

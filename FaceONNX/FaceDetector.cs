@@ -71,8 +71,11 @@ namespace FaceONNX
             return Forward(rgb);
         }
 
+        //public float LastConfidence { get; private set; }
+
         /// <inheritdoc/>
         public Rectangle[] Forward(float[][,] image)
+
         {
             if (image.Length != 3)
                 throw new ArgumentException("Image must be in BGR terms");
@@ -112,7 +115,8 @@ namespace FaceONNX
 
             for (int i = 0, j = 0; i < length; i += 2, j += 4)
             {
-                if (confidences[i + 1] > ConfidenceThreshold)
+                var confidence1 = confidences[i + 1];
+                if (confidence1 > ConfidenceThreshold)
                 {
                     boxes_picked.Add(
                         Rectangle.FromLTRB
@@ -122,6 +126,8 @@ namespace FaceONNX
                                 (int)(boxes[j + 2] * width),
                                 (int)(boxes[j + 3] * height)
                             ).ToBox());
+                    //LastConfidence = confidence1; // confidence dari frame terakhir
+
                 }
             }
 
@@ -146,6 +152,7 @@ namespace FaceONNX
                 }
             }
 
+            
             return boxes_picked.ToArray();
         }
 
